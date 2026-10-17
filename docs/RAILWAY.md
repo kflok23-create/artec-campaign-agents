@@ -21,7 +21,7 @@ change a setting in the dashboard, update this file in the same commit.
 | Restart policy | on failure, 10 retries | always | template default |
 | Draining | default | 30 s (lets an in-flight agent call finish) | 60 s (template) |
 | Replicas | 1 | 1 | 1 |
-| Public domain | yes (`/health`; inbox from Phase 4) | none | none (private network only) |
+| Public domain | `web-production-0c48.up.railway.app` (`/health`; inbox from Phase 4) | none | none (private network only) |
 
 Both services run migrations before they deploy. An advisory lock in `db/migrations/env.py` makes
 the second one wait and then find the schema already at head. The worker also refuses to start
