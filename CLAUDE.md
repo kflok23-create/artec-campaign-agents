@@ -55,10 +55,15 @@ docs/         BUILD_BRIEF.md, KICKOFF_PROMPT.md, PROGRESS.md
 
 ## Commands
 
-Phase 0 fills these in. Keep them current as the project grows.
+Keep these current as the project grows. Run from the repo root.
 
-- Install: `TBD (Phase 0)`
-- Run web locally: `TBD (Phase 0)`
-- Run worker locally: `TBD (Phase 0)`
-- Tests: `TBD (Phase 0)`
+- Install: `uv sync`
+- Local Postgres: `docker compose up -d` (dev DB `artec_agents`, test DB `artec_agents_test`)
+- Migrate: `uv run alembic upgrade head` (needs `DATABASE_URL`; Railway runs it pre-deploy)
+- Run web locally: `uv run python -m app` (serves `/health` on `$PORT`, default 8000)
+- Run worker locally: `uv run python -m worker` (`smoke [--force]` and `status` subcommands)
+- Tests: `uv run pytest` (paid calls only with `--run-live`)
+- Lint: `uv run ruff check . && uv run ruff format --check .`
 - Evals: `TBD (Phase 2)`
+
+Railway (project `artec-campaign-agents`, Singapore): services `web`, `worker`, `Postgres`. See `docs/RAILWAY.md`.

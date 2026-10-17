@@ -1,0 +1,18 @@
+# Keep secrets, local state and dev tooling out of the image.
+.env
+.env.*
+!.env.example
+secrets/
+.git/
+.venv/
+venv/
+**/__pycache__/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.claude/
+renders/
+exports/
+tests/
+compose.yaml
+*.log

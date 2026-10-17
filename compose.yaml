@@ -1,0 +1,22 @@
+# Local Postgres for development and tests only. Railway runs its own Postgres.
+# Start: docker compose up -d    Stop: docker compose down
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: artec
+      POSTGRES_PASSWORD: artec-local-only   # local throwaway; bound to 127.0.0.1 below
+      POSTGRES_DB: artec_agents
+    ports:
+      - "127.0.0.1:54329:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/local-init.sql:/docker-entrypoint-initdb.d/local-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U artec -d artec_agents"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  pgdata:
