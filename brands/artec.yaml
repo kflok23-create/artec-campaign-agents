@@ -1,0 +1,53 @@
+# Artec brand config. Every brand-specific rule lives here, never in Python.
+# Values marked <confirm> are open decisions (see docs/BUILD_BRIEF.md, "Decisions to confirm").
+# They must be filled in before Phase 2.
+
+brand: artec
+name: Artec
+category: educational puzzles
+markets: [MY, SG]
+languages: [en]              # <confirm> add ms / zh?
+
+audience: "<confirm>"        # e.g. parents and educators of children aged X to Y
+
+voice:
+  tone: "<confirm>"
+  do: []
+  dont: []
+
+claims:
+  allowed: []                # the ONLY educational/developmental claims the Reviewer accepts
+  banned: []
+
+channels:
+  instagram: { enabled: true, live: true,  formats: [feed_4x5, carousel] }
+  facebook:  { enabled: true, live: true,  formats: [feed_4x5] }
+  tiktok:    { enabled: true, live: false, formats: [photo_9x16] }   # live after TikTok content audit
+  linkedin:  { enabled: true, live: false, formats: [image_1x1] }    # live after Community Management API approval
+
+cadence: "<confirm>"         # posts per week per channel
+
+creative:
+  generative_video: false
+  model_rendered_text: false
+  bank_first: true
+  fal_budget_per_run_usd: 2.50
+
+assets:
+  drive_folder_id: "<confirm>"
+
+models:
+  strategist: claude-sonnet-5-5
+  curator: claude-haiku-5-5
+  copywriter: claude-sonnet-5-5
+  creative: claude-sonnet-5-5
+  reviewer: claude-sonnet-5-5
+  analyst: claude-sonnet-5-5
+
+budget:
+  claude_daily_usd: "<confirm>"
+
+approval:
+  approvers: ["<confirm>"]
+  auto_approve: false
+  max_revisions: 2

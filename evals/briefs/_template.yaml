@@ -1,0 +1,22 @@
+# Copy this file to create a sample brief, e.g. evals/briefs/01-school-holidays.yaml
+
+name: "<short name>"
+brand: artec
+goal: "<what this campaign should achieve>"
+start_date: "YYYY-MM-DD"
+end_date: "YYYY-MM-DD"
+markets: [MY, SG]
+products:
+  - "<product name as it appears in the asset bank>"
+promotions: []                 # leave empty unless the campaign has one
+channels: [instagram, facebook, tiktok, linkedin]
+notes: ""
+
+# Problems planted on purpose for the Reviewer to catch.
+seeded_violations:
+  - type: banned_claim         # banned_claim | unlisted_price | competitor | unconsented_child | model_text
+    detail: "<what was planted and where>"
+
+expected:
+  min_slots: 1
+  reviewer_must_flag: all      # every seeded violation
