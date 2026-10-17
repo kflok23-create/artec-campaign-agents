@@ -6,6 +6,7 @@ brand: artec
 name: Artec
 category: educational puzzles
 markets: [MY, SG]
+timezone: Asia/Kuala_Lumpur  # MY and SG are both UTC+8; budget days and publish times use this
 languages: [en]              # <confirm> add ms / zh?
 
 audience: "<confirm>"        # e.g. parents and educators of children aged X to Y
@@ -45,7 +46,7 @@ models:
   analyst: claude-sonnet-5-5
 
 budget:
-  claude_daily_usd: "<confirm>"
+  claude_daily_usd: 5.00     # set 2026-10-17 for Phases 0-2; revisit before Phase 2 evals
 
 approval:
   approvers: ["<confirm>"]
