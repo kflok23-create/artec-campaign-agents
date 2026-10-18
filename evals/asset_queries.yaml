@@ -1,0 +1,18 @@
+# Phase 1 gate: search_assets must return sensible matches for these 5 queries.
+# Run them all with: python -m worker search-check
+#
+# Proposed by Claude from Artec's product lines (ArtecRobo, ArtecBlocks, Artec Science, early
+# years). The owner can replace any query once the real bank is indexed; `expect` says what a
+# sensible top result looks like, for the owner to judge.
+
+queries:
+  - query: robot kit
+    expect: an ArtecRobo or other robot kit, built or in its box
+  - query: children building with blocks
+    expect: children assembling Artec blocks (lifestyle shot)
+  - query: teacher in a classroom
+    expect: a lesson or workshop with an educator
+  - query: product shot on white background
+    expect: a clean packshot suitable for a feed post
+  - query: science experiment
+    expect: an Artec Science set in use

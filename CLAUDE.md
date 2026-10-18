@@ -64,7 +64,8 @@ Keep these current as the project grows. Run from the repo root.
 - Run worker locally: `uv run python -m worker` (subcommands: `smoke [--force]`, `status`)
 - Asset bank: `uv run python -m worker index [--no-tag] [--retag-failed] [--tag-limit N]`,
   `uv run python -m worker search "<query>" [--kind image|video] [--safe-only]`,
-  `uv run python -m worker assets` (index summary)
+  `uv run python -m worker assets` (index summary), `uv run python -m worker search-check`
+  (the gate's 5 test queries in `evals/asset_queries.yaml`)
 - Tests: `uv run pytest` (paid calls only with `--run-live`)
 - Lint: `uv run ruff check . && uv run ruff format --check .`
 - Evals: `TBD (Phase 2)`

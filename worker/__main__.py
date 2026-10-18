@@ -1,4 +1,4 @@
-"""Entry point: `python -m worker [run|smoke|status|index|search|assets]`."""
+"""Entry point: `python -m worker [run|smoke|status|index|search|search-check|assets]`."""
 
 from __future__ import annotations
 
@@ -28,6 +28,8 @@ def main(argv: list[str] | None = None) -> int:
     search.add_argument("--kind", choices=["image", "video"])
     search.add_argument("--safe-only", action="store_true", help="hide uncleared children")
     search.add_argument("--limit", type=int, default=5)
+    check = sub.add_parser("search-check", help="run the gate's test queries (evals/)")
+    check.add_argument("--limit", type=int, default=5)
     sub.add_parser("assets", help="summarise the asset index")
     args = parser.parse_args(argv)
 
@@ -39,7 +41,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "smoke":
         print(anyio.run(smoke_once, settings, args.force))
         return 0
-    if args.cmd in ("index", "search", "assets"):
+    if args.cmd in ("index", "search", "search-check", "assets"):
         from worker import commands
 
         if args.cmd == "index":
@@ -61,6 +63,8 @@ def main(argv: list[str] | None = None) -> int:
                     limit=args.limit,
                 )
             )
+        elif args.cmd == "search-check":
+            out = anyio.run(lambda: commands.search_check(settings, limit=args.limit))
         else:
             out = anyio.run(commands.assets_summary, settings)
         print(out)

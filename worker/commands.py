@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 
+import yaml
 from sqlalchemy import func, select
 
 from db.locks import try_advisory_lock
@@ -12,7 +13,7 @@ from db.models import Asset, Task
 from db.session import make_engine, make_sessionmaker
 from services.asset_search import search_assets
 from services.brands import ensure_brand
-from services.config import Settings, load_brand
+from services.config import REPO_ROOT, Settings, load_brand
 from services.drive import drive_client
 from services.drive_index import index_brand
 from worker.main import wait_for_schema
@@ -94,6 +95,19 @@ async def search(
         if h.public_url:
             lines.append(f"    {h.public_url}")
     return "\n".join(lines)
+
+
+QUERIES_FILE = REPO_ROOT / "evals" / "asset_queries.yaml"
+
+
+async def search_check(settings: Settings, *, limit: int) -> str:
+    """Run the gate's test queries from evals/asset_queries.yaml, with what each should find."""
+    spec = yaml.safe_load(QUERIES_FILE.read_text(encoding="utf-8"))
+    sections = []
+    for n, item in enumerate(spec["queries"], 1):
+        result = await search(settings, item["query"], kind=None, safe_only=False, limit=limit)
+        sections.append(f"=== Query {n}: expect {item['expect']}\n{result}")
+    return "\n\n".join(sections)
 
 
 async def assets_summary(settings: Settings) -> str:
