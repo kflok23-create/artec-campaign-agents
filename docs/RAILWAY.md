@@ -47,6 +47,9 @@ Railway dashboard.
 | `WORKER_HEARTBEAT_SECONDS` | — | `60` | |
 | `WORKER_SMOKE_ON_BOOT` | — | `true` | Phase 0 smoke call, once per deployment |
 | `SMOKE_MODEL` | — | `claude-haiku-5-5` | |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | **secret, set by owner** | **secret, set by owner** | base64 service account key, Drive read-only; web needs it to serve media |
+| `PUBLIC_BASE_URL` | `https://web-production-0c48.up.railway.app` | same | base of asset media URLs; moves to Artec's domain later |
+| `ASSET_TAGGING_CONCURRENCY` | — | `2` | vision tagging calls in parallel |
 
 Railway provides `RAILWAY_DEPLOYMENT_ID`, `RAILWAY_GIT_COMMIT_SHA` and `PORT` on every deployment.
 
@@ -57,4 +60,6 @@ railway link                      # once: pick artec-campaign-agents / productio
 railway logs --service worker     # live worker logs
 railway ssh --service worker      # shell in the worker container, then:
 python -m worker status           #   recent agent_runs and today's Claude spend
+python -m worker assets           #   asset index summary
+python -m worker search "robot"   #   top matches in the asset index
 ```

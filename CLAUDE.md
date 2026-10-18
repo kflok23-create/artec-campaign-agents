@@ -61,7 +61,10 @@ Keep these current as the project grows. Run from the repo root.
 - Local Postgres: `docker compose up -d` (dev DB `artec_agents`, test DB `artec_agents_test`)
 - Migrate: `uv run alembic upgrade head` (needs `DATABASE_URL`; Railway runs it pre-deploy)
 - Run web locally: `uv run python -m app` (serves `/health` on `$PORT`, default 8000)
-- Run worker locally: `uv run python -m worker` (`smoke [--force]` and `status` subcommands)
+- Run worker locally: `uv run python -m worker` (subcommands: `smoke [--force]`, `status`)
+- Asset bank: `uv run python -m worker index [--no-tag] [--retag-failed] [--tag-limit N]`,
+  `uv run python -m worker search "<query>" [--kind image|video] [--safe-only]`,
+  `uv run python -m worker assets` (index summary)
 - Tests: `uv run pytest` (paid calls only with `--run-live`)
 - Lint: `uv run ruff check . && uv run ruff format --check .`
 - Evals: `TBD (Phase 2)`

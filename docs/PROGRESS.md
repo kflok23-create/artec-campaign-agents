@@ -34,6 +34,11 @@ Details and official sources: [`PLATFORM_ACCESS.md`](PLATFORM_ACCESS.md).
 | 2026-10-17 | Deploy from GitHub `main` (deploys on push); repo stays public for now | Kah |
 | 2026-10-17 | Brand time zone `Asia/Kuala_Lumpur` (MY and SG are both UTC+8) | Claude, flagged |
 | 2026-10-17 | DB driver asyncpg (works on Windows dev and Linux); Railway settings recorded in `RAILWAY.md` because Config as Code is deprecated | Claude, flagged |
+| 2026-10-18 | Asset tags from folder and file names plus one Claude Haiku look per image (tags, description, people/children); indexer budget $1.00 per run under the daily cap | Kah |
+| 2026-10-18 | Consent by folder convention: files under a `consent-cleared` folder are cleared; everything else is not | Kah |
+| 2026-10-18 | Public asset URLs served by `web` from Drive at unguessable `/media/a/<token>` URLs; only tagged assets that show no children or are consent-cleared | Kah |
+| 2026-10-18 | Railway watch paths skip redeploys for docs-only commits | Kah |
+| 2026-10-18 | Asset search is Postgres full-text search (no paid embedding service) | Claude, flagged |
 
 ## Gate reports
 
