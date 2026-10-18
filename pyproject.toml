@@ -9,6 +9,9 @@ dependencies = [
     "asyncpg>=0.32.0",
     "claude-agent-sdk>=0.2.168",
     "fastapi>=0.143.3",
+    "google-auth>=2.62.0",
+    "httpx>=0.28.1",
+    "pillow>=13.0.0",
     "pydantic>=2.14.1",
     "pydantic-settings>=2.16.0",
     "pyyaml>=6.0.3",
@@ -43,7 +46,6 @@ ignore = ["S101"]  # assert is fine in tests
 
 [dependency-groups]
 dev = [
-    "httpx>=0.28.1",
     "pytest>=9.1.1",
     "ruff>=0.17.1",
 ]
