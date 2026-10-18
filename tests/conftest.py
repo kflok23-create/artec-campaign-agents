@@ -18,6 +18,7 @@ from alembic.config import Config
 from claude_agent_sdk import ResultMessage, SystemMessage
 from sqlalchemy import text
 
+from db.models import Base
 from db.session import make_engine, make_sessionmaker
 from services.config import REPO_ROOT, Settings, load_brand
 
@@ -65,8 +66,9 @@ def migrated_db() -> str:
 @pytest.fixture
 async def sessionmaker(migrated_db: str) -> AsyncIterator[Any]:
     engine = make_engine(migrated_db)
+    tables = ", ".join(t.name for t in Base.metadata.sorted_tables)
     async with engine.begin() as conn:
-        await conn.execute(text("TRUNCATE spend_ledger, agent_runs RESTART IDENTITY CASCADE"))
+        await conn.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
     try:
         yield make_sessionmaker(engine)
     finally:

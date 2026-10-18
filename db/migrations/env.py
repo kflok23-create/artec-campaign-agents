@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from logging.config import fileConfig
+import os
 
 from alembic import context
 from sqlalchemy import pool, text
@@ -13,8 +13,11 @@ from db.models import Base
 from db.session import async_url
 
 config = context.config
-if config.config_file_name and not config.attributes.get("skip_logging_config"):
-    fileConfig(config.config_file_name, disable_existing_loggers=False)
+if not config.attributes.get("skip_logging_config"):
+    # JSON lines on stdout like the services: Railway then shows INFO as info, not as an error.
+    from services.logs import configure_logging
+
+    configure_logging(os.environ.get("LOG_LEVEL", "INFO"))
 
 target_metadata = Base.metadata
 

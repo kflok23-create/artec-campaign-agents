@@ -30,7 +30,7 @@ def test_no_public_api_docs(settings):
 
 
 def test_schema_head_is_latest_migration():
-    assert schema_head() == "0001"
+    assert schema_head() == "0002"
 
 
 @pytest.mark.anyio

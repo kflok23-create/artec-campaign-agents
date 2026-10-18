@@ -14,7 +14,7 @@ from agents.runner import (
     build_options,
     run_agent,
 )
-from db.models import AgentRun, SpendLedger
+from db.models import AgentRun, SpendLedger, Task
 from services.budget import BudgetExceeded
 from services.config import Budget
 from tests.conftest import FAKE_API_KEY, FakeQuery, init_message, result_message
@@ -111,11 +111,14 @@ async def test_no_api_key_means_no_call(settings, brand, sessionmaker):
 
 
 async def test_success_logs_tokens_and_cost(settings, brand, sessionmaker):
+    async with sessionmaker() as s, s.begin():
+        task = Task(brand="artec", kind="test", idempotency_key="test:1")
+        s.add(task)
     fake = FakeQuery(
         [init_message(TOOLS_OK), result_message({"answer": "hi", "score": 3}, cost=0.0042)]
     )
     result = await run_agent(
-        spec(), "go", rc(settings, brand, sessionmaker, task_id=7), query_fn=fake
+        spec(), "go", rc(settings, brand, sessionmaker, task_id=task.id), query_fn=fake
     )
     assert result.output == Out(answer="hi", score=3)
     assert result.cost_usd == Decimal("0.0042")
@@ -125,7 +128,7 @@ async def test_success_logs_tokens_and_cost(settings, brand, sessionmaker):
     assert (run.agent, run.model, run.task_id, run.run_id, run.attempt) == (
         "tester",
         "claude-haiku-5-5",
-        7,
+        task.id,
         "run-1",
         1,
     )
