@@ -223,3 +223,33 @@ async def test_cap_reached_means_no_call_and_no_row(settings, brand, sessionmake
     assert fake.calls == []
     runs, ledger = await _rows(sessionmaker)
     assert runs == [] and ledger == []
+
+
+# --- Images ----------------------------------------------------------------------------------
+
+
+async def test_images_are_sent_as_content_blocks(settings, brand, sessionmaker):
+    from agents.runner import ImageInput
+
+    fake = FakeQuery([init_message(TOOLS_OK), result_message({"answer": "a cat", "score": 1})])
+    image = ImageInput(media_type="image/jpeg", data=b"\xff\xd8jpeg-bytes")
+    await run_agent(
+        spec(), "describe", rc(settings, brand, sessionmaker), images=[image], query_fn=fake
+    )
+    messages = [m async for m in fake.calls[0]["prompt"]]
+    (msg,) = messages
+    assert msg["type"] == "user"
+    blocks = msg["message"]["content"]
+    assert blocks[0]["type"] == "image"
+    assert blocks[0]["source"] == {
+        "type": "base64",
+        "media_type": "image/jpeg",
+        "data": "/9hqcGVnLWJ5dGVz",
+    }
+    assert blocks[1] == {"type": "text", "text": "describe"}
+
+
+async def test_text_only_prompt_stays_a_string(settings, brand, sessionmaker):
+    fake = FakeQuery([init_message(TOOLS_OK), result_message({"answer": "x", "score": 1})])
+    await run_agent(spec(), "go", rc(settings, brand, sessionmaker), query_fn=fake)
+    assert fake.calls[0]["prompt"] == "go"

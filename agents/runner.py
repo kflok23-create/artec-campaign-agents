@@ -15,6 +15,7 @@ secret except the Anthropic key is blanked before it starts.
 
 from __future__ import annotations
 
+import base64
 import logging
 import tempfile
 import time
@@ -84,6 +85,42 @@ class AgentSpec[T: BaseModel]:
     tools: Sequence[SdkMcpTool[Any]] = ()
     max_turns: int = 8
     ceiling_usd: float = 0.50  # most one call may cost; held in the ledger before the call
+
+
+@dataclass(frozen=True)
+class ImageInput:
+    """An image for the model to look at, sent with the prompt as a base64 content block."""
+
+    media_type: str  # image/jpeg, image/png, image/webp or image/gif
+    data: bytes
+
+
+def prompt_input(prompt: str, images: Sequence[ImageInput] = ()) -> str | AsyncIterator[dict]:
+    """The prompt as the SDK takes it: plain text, or one streamed user message with images."""
+    if not images:
+        return prompt
+    content: list[dict[str, Any]] = [
+        {
+            "type": "image",
+            "source": {
+                "type": "base64",
+                "media_type": image.media_type,
+                "data": base64.b64encode(image.data).decode("ascii"),
+            },
+        }
+        for image in images
+    ]
+    content.append({"type": "text", "text": prompt})
+
+    async def one_message() -> AsyncIterator[dict]:
+        yield {
+            "type": "user",
+            "session_id": "",
+            "message": {"role": "user", "content": content},
+            "parent_tool_use_id": None,
+        }
+
+    return one_message()
 
 
 @dataclass(frozen=True)
@@ -192,7 +229,12 @@ def _call_cost(
 
 
 async def _call_once[T: BaseModel](
-    spec: AgentSpec[T], prompt: str, rc: RunContext, attempt: int, query_fn: QueryFn
+    spec: AgentSpec[T],
+    prompt: str,
+    images: Sequence[ImageInput],
+    rc: RunContext,
+    attempt: int,
+    query_fn: QueryFn,
 ) -> _Attempt:
     hold = await budget.reserve_claude(
         rc.sessionmaker, brand=rc.brand, run_id=rc.run_id, ceiling_usd=spec.ceiling_usd
@@ -220,7 +262,7 @@ async def _call_once[T: BaseModel](
     try:
         with tempfile.TemporaryDirectory(prefix=f"agent-{spec.name}-") as cwd:
             options = build_options(spec, rc.settings, cwd)
-            async for message in query_fn(prompt=prompt, options=options):
+            async for message in query_fn(prompt=prompt_input(prompt, images), options=options):
                 if isinstance(message, SystemMessage) and message.subtype == "init":
                     exposed = _check_lockdown(message, spec)
                     may_have_spent = True
@@ -312,14 +354,19 @@ def _retry_prompt(prompt: str, errors: str) -> str:
 
 
 async def run_agent[T: BaseModel](
-    spec: AgentSpec[T], prompt: str, rc: RunContext, *, query_fn: QueryFn = sdk_query
+    spec: AgentSpec[T],
+    prompt: str,
+    rc: RunContext,
+    *,
+    images: Sequence[ImageInput] = (),
+    query_fn: QueryFn = sdk_query,
 ) -> AgentResult[T]:
     """Run an agent and return its validated output. Invalid output is retried once."""
     ids: list[int] = []
     total = Decimal(0)
     current = prompt
     for attempt in (1, 2):
-        outcome = await _call_once(spec, current, rc, attempt, query_fn)
+        outcome = await _call_once(spec, current, images, rc, attempt, query_fn)
         ids.append(outcome.agent_run_id)
         total += outcome.cost_usd
         if outcome.validation_errors is None:

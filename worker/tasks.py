@@ -13,8 +13,12 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
+from db.locks import try_advisory_lock
 from services.config import BrandConfig, Settings
+from services.drive import drive_client
+from services.drive_index import IndexConfigError, index_brand
 from worker.queue import ClaimedTask
+from worker.scheduler import INDEX_ASSETS
 
 
 @dataclass(frozen=True)
@@ -42,3 +46,31 @@ def handles(kind: str) -> Callable[[Handler], Handler]:
         return fn
 
     return register
+
+
+def index_lock_key(brand: str) -> str:
+    return f"index_assets:{brand}"
+
+
+@handles(INDEX_ASSETS)
+async def index_assets(task: ClaimedTask, w: WorkerContext) -> dict[str, Any]:
+    """Scan the brand's Drive bank, then tag new or changed images within the run budget."""
+    if not w.brand.assets.configured or w.settings.google_service_account_json is None:
+        raise NonRetryable("asset bank not configured (drive_folder_id or service account)")
+    async with try_advisory_lock(w.sessionmaker, index_lock_key(w.brand.brand)) as got:
+        if not got:
+            return {"skipped": "another index run holds the lock"}
+        try:
+            async with drive_client(w.settings.google_service_account_json.get_secret_value()) as d:
+                report = await index_brand(
+                    sessionmaker=w.sessionmaker,
+                    settings=w.settings,
+                    brand=w.brand,
+                    brand_id=w.brand_id,
+                    drive=d,
+                    run_id=f"index:{w.brand.brand}:task-{task.id}",
+                    task_id=task.id,
+                )
+        except IndexConfigError as e:
+            raise NonRetryable(str(e)) from e  # a wrong folder ID will not fix itself
+    return report.as_dict()
