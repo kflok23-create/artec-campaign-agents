@@ -1,13 +1,18 @@
 """The always-on worker process.
 
-Phase 0 scope: start up, wait for the schema, run the smoke call once per deployment, then
-heartbeat until told to stop. Phase 1 adds the task queue loop here.
+It starts up, waits for the schema, runs the smoke call once per deployment, then loops:
+enqueue any periodic jobs that are due, claim the next task from the queue, run its handler.
+Code decides what runs; handlers live in worker/tasks.py.
 """
 
 from __future__ import annotations
 
 import logging
+import os
 import signal
+import socket
+import time
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import anyio
@@ -19,13 +24,17 @@ from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 from db.models import AgentRun
 from db.session import make_engine, make_sessionmaker
 from services import budget
+from services.brands import ensure_brand
 from services.config import REPO_ROOT, BrandConfig, Settings, load_brand
 from services.logs import ctx
+from worker import queue, scheduler
 from worker.smoke import run_smoke
+from worker.tasks import HANDLERS, Handler, NonRetryable, WorkerContext
 
 log = logging.getLogger("worker")
 
 SCHEMA_WAIT_SECONDS = 180
+LOOP_ERROR_PAUSE_SECONDS = 15
 
 
 def schema_head() -> str:
@@ -76,6 +85,118 @@ def _startup_fields(settings: Settings, brand: BrandConfig) -> dict:
     }
 
 
+def worker_id() -> str:
+    return f"{socket.gethostname()}:{os.getpid()}"
+
+
+async def _heartbeat(settings: Settings, stop: anyio.Event) -> None:
+    beat = 0
+    while not stop.is_set():
+        beat += 1
+        log.info("heartbeat", extra=ctx(beat=beat, deployment=settings.deployment_key))
+        with anyio.move_on_after(settings.worker_heartbeat_seconds):
+            await stop.wait()
+
+
+async def _renew_lease(
+    wctx: WorkerContext, task: queue.ClaimedTask, lease_seconds: float, lost: anyio.CancelScope
+) -> None:
+    while True:
+        await anyio.sleep(lease_seconds / 3)
+        if not await queue.extend_lease(wctx.sessionmaker, task, lease_seconds):
+            # Another worker took the task over; stop working on it.
+            log.warning("lease lost; abandoning task", extra=ctx(task_id=task.id))
+            lost.cancel()
+            return
+
+
+async def _cancel_on_shutdown(stop: anyio.Event, scope: anyio.CancelScope, grace: float) -> None:
+    await stop.wait()
+    log.info("shutdown: letting the running task finish", extra=ctx(grace_seconds=grace))
+    await anyio.sleep(grace)
+    scope.cancel()
+
+
+async def run_task(
+    task: queue.ClaimedTask,
+    wctx: WorkerContext,
+    stop: anyio.Event,
+    *,
+    handlers: dict[str, Handler] = HANDLERS,
+    lease_seconds: float = queue.LEASE_SECONDS,
+) -> str:
+    """Run one claimed task's handler and record the outcome. Returns the task's new status."""
+    fields = {"task_id": task.id, "kind": task.kind, "attempt": task.attempts}
+    log.info("task started", extra=ctx(**fields))
+    started = time.monotonic()
+    result = None
+    error: BaseException | None = None
+    returned = False  # the handler returned or raised, as opposed to being cancelled
+    with anyio.CancelScope() as scope:
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(_renew_lease, wctx, task, lease_seconds, scope)
+            tg.start_soon(
+                _cancel_on_shutdown, stop, scope, wctx.settings.worker_shutdown_grace_seconds
+            )
+            try:
+                result = await handlers[task.kind](task, wctx)
+            except Exception as e:  # noqa: BLE001 - every failure is recorded on the task
+                error = e
+            returned = True
+            tg.cancel_scope.cancel()
+    duration_ms = int((time.monotonic() - started) * 1000)
+
+    with anyio.CancelScope(shield=True):  # always record the outcome, even while stopping
+        if not returned:
+            status = "queued"
+            await queue.defer(
+                wctx.sessionmaker, task, datetime.now(UTC), "interrupted (shutdown or lease lost)"
+            )
+        elif error is None:
+            status = "done"
+            await queue.finish(wctx.sessionmaker, task, result)
+        elif isinstance(error, budget.BudgetExceeded):
+            status = "queued"
+            resume = budget.next_local_day_start(wctx.brand)
+            await queue.defer(wctx.sessionmaker, task, resume, f"budget cap: {error}")
+            log.error(
+                "budget cap reached; task paused until the next budget day",
+                extra=ctx(**fields, resume_at=resume.isoformat(), alert=True),
+            )
+        else:
+            message = f"{type(error).__name__}: {error}"
+            status = await queue.fail(
+                wctx.sessionmaker, task, message, retry=not isinstance(error, NonRetryable)
+            )
+            if status == "failed":
+                log.error("task error", exc_info=error, extra=ctx(**fields))
+    log.info("task finished", extra=ctx(**fields, status=status, duration_ms=duration_ms))
+    return status
+
+
+async def _work(wctx: WorkerContext, stop: anyio.Event, me: str) -> None:
+    jobs = scheduler.periodic_jobs(wctx.settings, wctx.brand)
+    missing = scheduler.missing_prerequisites(wctx.settings, wctx.brand)
+    if missing:
+        log.warning("asset indexing is off until these are set", extra=ctx(missing=missing))
+    while not stop.is_set():
+        try:
+            if jobs:
+                await scheduler.enqueue_due(wctx.sessionmaker, wctx.brand, jobs)
+            task = await queue.claim(wctx.sessionmaker, worker_id=me, kinds=list(HANDLERS))
+        except Exception:
+            # Usually the database restarting. Keep the worker up and try again shortly.
+            log.exception("queue loop error")
+            with anyio.move_on_after(LOOP_ERROR_PAUSE_SECONDS):
+                await stop.wait()
+            continue
+        if task is not None:
+            await run_task(task, wctx, stop)
+            continue
+        with anyio.move_on_after(wctx.settings.worker_poll_seconds):
+            await stop.wait()
+
+
 async def serve(settings: Settings) -> None:
     brand = load_brand(settings.brand)
     log.info("worker starting", extra=ctx(**_startup_fields(settings, brand)))
@@ -87,20 +208,19 @@ async def serve(settings: Settings) -> None:
     stop = anyio.Event()
     try:
         await wait_for_schema(engine)
+        async with sessionmaker() as session, session.begin():
+            brand_id = await ensure_brand(session, brand)
+        wctx = WorkerContext(settings, brand, brand_id, sessionmaker)
         async with anyio.create_task_group() as tg:
             tg.start_soon(_watch_signals, stop)
+            tg.start_soon(_heartbeat, settings, stop)
             if settings.worker_smoke_on_boot:
                 try:
                     await run_smoke(settings, brand, sessionmaker)
                 except Exception:
                     # Keep the worker up; the failure is on the agent_runs row and in this log.
                     log.exception("smoke check failed", extra=ctx(alert=True))
-            beat = 0
-            while not stop.is_set():
-                beat += 1
-                log.info("heartbeat", extra=ctx(beat=beat, deployment=settings.deployment_key))
-                with anyio.move_on_after(settings.worker_heartbeat_seconds):
-                    await stop.wait()
+            await _work(wctx, stop, worker_id())
             tg.cancel_scope.cancel()
     finally:
         await engine.dispose()

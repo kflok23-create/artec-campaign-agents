@@ -26,6 +26,8 @@ BRANDS_DIR = REPO_ROOT / "brands"
 CONFIRM = "<confirm>"
 
 AGENTS = ("strategist", "curator", "copywriter", "creative", "reviewer", "analyst")
+# Every model call needs a model in config: the six agents plus the indexer's vision tagger.
+MODEL_KEYS = (*AGENTS, "asset_tagger")
 CHANNELS = ("instagram", "facebook", "tiktok", "linkedin")
 
 
@@ -61,8 +63,16 @@ class Settings(BaseSettings):
 
     # Worker
     worker_heartbeat_seconds: int = Field(default=60, ge=5)
+    worker_poll_seconds: float = Field(default=5, gt=0)
+    # On SIGTERM a running task gets this long to finish before it is put back in the queue.
+    # Keep it under the worker's Railway draining time (30 s).
+    worker_shutdown_grace_seconds: float = Field(default=20, ge=0)
     worker_smoke_on_boot: bool = True
     smoke_model: str = "claude-haiku-5-5"
+    asset_tagging_concurrency: int = Field(default=2, ge=1, le=8)
+
+    # Public base URL of the web service, for asset and media links (no trailing slash).
+    public_base_url: str | None = None
 
     # Set by Railway on every deployment; None when running locally.
     railway_deployment_id: str | None = None
@@ -124,6 +134,13 @@ class Creative(_Strict):
 
 class Assets(_Strict):
     drive_folder_id: str
+    consent_folder_names: list[str] = ["consent-cleared"]
+    index_every_minutes: int = Field(default=60, ge=5)
+    tagging_budget_usd_per_run: float = Field(default=1.00, ge=0, le=5)
+
+    @property
+    def configured(self) -> bool:
+        return self.drive_folder_id != CONFIRM
 
 
 class Budget(_Strict):
@@ -170,8 +187,8 @@ class BrandConfig(_Strict):
     @field_validator("models")
     @classmethod
     def _every_agent_has_a_model(cls, v: dict[str, str]) -> dict[str, str]:
-        missing = [a for a in AGENTS if a not in v]
-        unknown = [a for a in v if a not in AGENTS]
+        missing = [a for a in MODEL_KEYS if a not in v]
+        unknown = [a for a in v if a not in MODEL_KEYS]
         if missing or unknown:
             raise ValueError(f"models: missing {missing}, unknown {unknown}")
         return v

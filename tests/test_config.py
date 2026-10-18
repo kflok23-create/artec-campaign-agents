@@ -19,7 +19,10 @@ def test_artec_brand_loads(brand):
         "creative",
         "reviewer",
         "analyst",
+        "asset_tagger",
     }
+    assert brand.assets.consent_folder_names == ["consent-cleared"]
+    assert not brand.assets.configured  # drive_folder_id is still <confirm>
 
 
 def test_unconfirmed_values_are_listed(brand):

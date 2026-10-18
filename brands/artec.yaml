@@ -35,7 +35,10 @@ creative:
   fal_budget_per_run_usd: 2.50
 
 assets:
-  drive_folder_id: "<confirm>"
+  drive_folder_id: "<confirm>"            # the asset bank folder, shared with the service account
+  consent_folder_names: [consent-cleared] # files under a folder with this name are consent-cleared
+  index_every_minutes: 60                 # how often the worker re-scans the bank
+  tagging_budget_usd_per_run: 1.00        # most one index run spends on vision tagging
 
 models:
   strategist: claude-sonnet-5-5
@@ -44,6 +47,7 @@ models:
   creative: claude-sonnet-5-5
   reviewer: claude-sonnet-5-5
   analyst: claude-sonnet-5-5
+  asset_tagger: claude-haiku-5-5  # the indexer's vision tagging, not a pipeline agent
 
 budget:
   claude_daily_usd: 5.00     # set 2026-10-17 for Phases 0-2; revisit before Phase 2 evals

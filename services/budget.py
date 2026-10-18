@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import UTC, datetime, time
+from datetime import UTC, datetime, time, timedelta
 from decimal import ROUND_UP, Decimal
 
 from sqlalchemy import case, func, select, text, update
@@ -56,6 +56,13 @@ def local_day_start(brand: BrandConfig, now: datetime | None = None) -> datetime
     now = now or datetime.now(UTC)
     local = now.astimezone(brand.tz)
     return datetime.combine(local.date(), time.min, tzinfo=brand.tz).astimezone(UTC)
+
+
+def next_local_day_start(brand: BrandConfig, now: datetime | None = None) -> datetime:
+    """When the brand's next budget day begins, as an aware UTC datetime."""
+    now = now or datetime.now(UTC)
+    tomorrow = now.astimezone(brand.tz).date() + timedelta(days=1)
+    return datetime.combine(tomorrow, time.min, tzinfo=brand.tz).astimezone(UTC)
 
 
 async def spent_since(
