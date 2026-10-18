@@ -20,8 +20,13 @@ change a setting in the dashboard, update this file in the same commit.
 | Healthcheck | `/health`, 120 s timeout | none (no HTTP port) | — |
 | Restart policy | on failure, 10 retries | always | template default |
 | Draining | default | 30 s (lets an in-flight agent call finish) | 60 s (template) |
+| Watch paths | `**`, `!/docs/**`, `!/*.md`, `!/.claude/**`, `!/tests/**` | same | — |
 | Replicas | 1 | 1 | 1 |
 | Public domain | `web-production-0c48.up.railway.app` (`/health`; inbox from Phase 4) | none | none (private network only) |
+
+Watch paths skip a redeploy when a commit only touches docs, root Markdown files, Claude Code
+settings or tests. Agent prompts (`agents/*/prompt.md`) are not excluded: they are code. To deploy
+a commit the watch paths skipped, use "Deploy Latest Commit" in the dashboard's command palette.
 
 Both services run migrations before they deploy. An advisory lock in `db/migrations/env.py` makes
 the second one wait and then find the schema already at head. The worker also refuses to start
