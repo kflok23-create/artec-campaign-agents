@@ -1,13 +1,13 @@
 # Progress
 
-Current phase: **0 — Foundation (gate report written, awaiting owner decision)**
+Current phase: **1 — Data and assets (in progress)**
 
 Gate reports are appended below by `/gate`, newest last. Each report records what was built, how to test it, what is still open, and the owner's decision.
 
 | Phase | Name | Status | Gate passed |
 | --- | --- | --- | --- |
-| 0 | Foundation | Gate review | — |
-| 1 | Data and assets | Not started | — |
+| 0 | Foundation | Passed | 2026-10-18 |
+| 1 | Data and assets | In progress | — |
 | 2 | Thinking agents, dry run | Not started | — |
 | 3 | Creative | Not started | — |
 | 4 | Approval and first channels | Not started | — |
@@ -156,4 +156,4 @@ for it). `uv run ruff check .` and `uv run ruff format --check .` are clean.
    estimate; `agent_runs.usage` also stores our figure computed from tokens, using the price table
    in `services/pricing.py` (dated 2026-10-06), which needs updating if prices change.
 
-**Owner decision:** `pending`
+**Owner decision:** `passed` (Kah, 2026-10-18)
