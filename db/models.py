@@ -327,9 +327,7 @@ class Asset(Base):
         UniqueConstraint("brand_id", "drive_file_id", name="assets_brand_drive_file"),
         CheckConstraint(f"kind IN {_in(ASSET_KINDS)}", name="assets_kind"),
         CheckConstraint(f"status IN {_in(ASSET_STATUSES)}", name="assets_status"),
-        CheckConstraint(
-            f"tagging_status IN {_in(TAGGING_STATUSES)}", name="assets_tagging_status"
-        ),
+        CheckConstraint(f"tagging_status IN {_in(TAGGING_STATUSES)}", name="assets_tagging_status"),
         CheckConstraint(f"people IN {_in(PEOPLE_VALUES)}", name="assets_people"),
         Index("assets_search", "search", postgresql_using="gin"),
         Index("assets_tags", "tags", postgresql_using="gin"),
